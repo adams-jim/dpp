@@ -40,7 +40,7 @@
 #include <openssl/sha.h>
 #include <openssl/ecdsa.h>
 #include "jsmn.h"
-#ifdef FREEBSD
+#if defined(FREEBSD) || OPENSSL_VERSION_NUMBER < 0x10100000L
 #include "helpers.h"
 #endif  /* FREEBSD */
 

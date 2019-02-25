@@ -41,7 +41,7 @@
 #include <openssl/evp.h>
 #include <openssl/hmac.h>
 #include <openssl/sha.h>
-#ifdef FREEBSD
+#if defined(FREEBSD) || OPENSSL_VERSION_NUMBER < 0x10100000L
 #include "helpers.h"
 #endif  /* FREEBSD */
 
