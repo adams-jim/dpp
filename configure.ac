@@ -24,6 +24,12 @@ AC_ARG_WITH(ssl,
 CFLAGS="$CFLAGS -Wall -I$ssldir/include"
 LDFLAGS="$LDFLAGS -L$ssldir/lib -L$ssldir"
 
+AC_ARG_WITH(sysroot,
+	[  --with-sysroot[=DIR]	   search for usr/include et al within DIR],
+	[sysroot_dir=$withval],
+	[sysroot_dir=]
+)
+
 # Checks for header files.
 AC_CHECK_HEADERS([arpa/inet.h fcntl.h netinet/in.h stddef.h stdlib.h string.h sys/ioctl.h sys/socket.h sys/time.h unistd.h])
 
@@ -74,7 +80,7 @@ case $host in
 		LDFLAGS="$LDFLAGS -static",
 		[givemsg="yes" ld_msg="LD_LIBRARY_PATH"]
 	)
-	CFLAGS="$CFLAGS -I/usr/include/libnl3"
+	CFLAGS="$CFLAGS -I$sysroot_dir/usr/include/libnl3"
 	AC_CONFIG_FILES([linux/Makefile
 	])
 	;;
