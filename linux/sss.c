@@ -65,6 +65,7 @@ struct interface {
     struct nl_sock *nl_sock;
     struct nl_sock *nl_mlme;
     struct nl_cb *nl_cb;
+    enum nl80211_iftype iftype;
     unsigned long ifindex;
     unsigned long wiphy;
     unsigned long freq;
@@ -86,6 +87,21 @@ struct family_data {
     int id;
 };
 
+static const char *nl_iftypes[NL80211_IFTYPE_MAX + 1] = {
+	"UNSPEC",
+	"ADHOC",
+	"STA (managed)",
+	"AP",
+	"AP_VLAN",
+	"WDS",
+	"MONITOR",
+	"MESH POINT",
+	"P2P CLIENT",
+	"P2P GO",
+	"P2P DEVICE",
+        /*	"OUTSIDE CONTEXT BSS",
+                "NAN", */
+};
 service_context srvctx;
 static int discovered = -1;
 char our_ssid[33];
@@ -592,7 +608,10 @@ get_phy_info (struct nl_msg *msg, void *arg)
         memcpy(inf->bssid, nla_data(tb[NL80211_ATTR_MAC]), ETH_ALEN);
         printf("interface MAC address is " MACSTR "\n", MAC2STR(inf->bssid));
     }
-
+    if (tb[NL80211_ATTR_IFTYPE]) {
+        inf->iftype = nla_get_u32(tb[NL80211_ATTR_IFTYPE]);
+        printf("interface type is %s\n", nl_iftypes[inf->iftype]);
+    }
     if (tb[NL80211_ATTR_WIPHY]) {
         inf->wiphy = nla_get_u32(tb[NL80211_ATTR_WIPHY]);
         printf("wiphy is %ld\n", inf->wiphy);
@@ -1211,6 +1230,40 @@ chan2freq (unsigned int chan)
     return 5000 + (chan * 5);
 }
 
+static int
+remain_on_channel (struct interface *inf, unsigned int freq, unsigned int duration)
+{
+    struct nl_msg *msg;
+    int ret;
+    unsigned long long cookie;
+
+    if ((msg = get_nl_msg(inf, 0, NL80211_CMD_REMAIN_ON_CHANNEL)) == NULL) {
+        nlmsg_free(msg);
+        return -1;
+    }
+
+    nla_put_u32(msg, NL80211_ATTR_WIPHY_FREQ, freq);
+    nla_put_u32(msg, NL80211_ATTR_DURATION, duration);
+
+    cookie = 0;
+    ret = send_nl_msg(msg, inf, cookie_handler, &cookie);
+    if (ret != 0) {
+        fprintf(stderr, "remain_on_channel: can't send nl msg!\n");
+    }
+
+    return ret;
+}
+
+static void
+periodic_listen (timerid tid, void *data)
+{
+    struct interface *inf = (struct interface *)data;
+
+    remain_on_channel (inf, inf->freq, 100);
+
+    srv_add_timeout(srvctx, SRV_MSEC(101), periodic_listen, inf);
+}
+
 int
 change_channel (unsigned char *mymac, unsigned char class, unsigned char channel)
 {
@@ -1490,6 +1543,10 @@ main (int argc, char **argv)
         inf->freq = chan2freq(channel);
         printf("channel %ld\n", inf->freq);
         
+        if (!inf->is_loopback && inf->iftype != NL80211_IFTYPE_MONITOR) {
+            printf("setup periodic listen\n");
+            srv_add_timeout(srvctx, SRV_MSEC(1), periodic_listen, inf);
+        }
         /*
          * if we're not changing the channel in DPP after the 1st message then
          * just set it now.
