@@ -494,7 +494,7 @@ static int
 error_handler (struct sockaddr_nl *nla, struct nlmsgerr *err, void *arg)
 {
     int *ret = arg;
-    printf("error...%d: %s\n", err->error, nl_geterror(err->error));
+    printf("error...%d: %s\n", err->error, strerror(-err->error));
     *ret = err->error;
     return NL_SKIP; 
 }
@@ -840,6 +840,7 @@ transmit_pkex_frame (unsigned char *mymac, unsigned char *peermac, char *data, i
 static int
 register_action_frame (struct interface *inf, int flags, unsigned char *match, int match_len)
 {
+    int ret;
     struct nl_msg *msg;
     unsigned short type = (IEEE802_11_FC_TYPE_MGMT << 2 | IEEE802_11_FC_STYPE_ACTION << 4);
 
@@ -849,7 +850,12 @@ register_action_frame (struct interface *inf, int flags, unsigned char *match, i
     }
     nla_put_u16(msg, NL80211_ATTR_FRAME_TYPE, type);
     nla_put(msg, NL80211_ATTR_FRAME_MATCH, match_len, match);
-    if (send_mgmt_msg(msg, inf, mgmt_frame_in, inf)) {
+    ret = send_mgmt_msg(msg, inf, mgmt_frame_in, inf);
+    if (ret == -EALREADY) {
+        fprintf(stderr, "action frame already registered by someone else, "
+                "continue anyway\n");
+    }
+    else if (ret) {
         fprintf(stderr, "unable to register for action frame!\n");
         return -1;
     }
