@@ -62,6 +62,9 @@
 #include "tlv.h"
 #include "pkex.h"
 #include "dpp.h"
+#if OPENSSL_VERSION_NUMBER < 0x10100000L
+#include "helpers.h"
+#endif
 
 struct interface {
     TAILQ_ENTRY(interface) entry;

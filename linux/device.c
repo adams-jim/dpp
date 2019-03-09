@@ -54,6 +54,9 @@
 #include "tlv.h"
 #include "pkex.h"
 #include "dpp.h"
+#if OPENSSL_VERSION_NUMBER < 0x10100000L
+#include "helpers.h"
+#endif
 
 service_context srvctx;
 unsigned int opclass = 81, channel = 6;
